@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../src/auth.php';
+check_auth_api();
 
 header('Content-Type: application/json');
 
@@ -15,13 +17,13 @@ try {
     exit;
 }
 
-$userId = 1; // TODO: Replace with session user ID
+$userId = $_SESSION['user_id'] ?? 1;
 
 try {
     // Fetch all events for the user. Filtering by date is complex with recurrence,
     // so we fetch all and process in PHP. For large datasets, this should be optimized.
     $stmt = $pdo->prepare(
-        'SELECT id, title, start, end, allDay, completed, color, recurrence_rule, description FROM events WHERE user_id = ?'
+        'SELECT id, title, start, end, allDay, completed, color, category, recurrence_rule, description FROM events WHERE user_id = ?'
     );
     $stmt->execute([$userId]);
     $all_user_events = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -56,6 +58,7 @@ try {
                     'color' => $row['color'],
                     'allDay' => $isAllDay,
                     'extendedProps' => [
+                        'category' => $row['category'],
                         'recurrence_rule' => null,
                         'description' => $row['description'],
                         'completed' => $isCompleted
@@ -67,7 +70,7 @@ try {
             $start_dt = new DateTime($row['start']);
             $end_dt = new DateTime($row['end']);
             $duration = $start_dt->diff($end_dt);
-            
+
             $current_date = clone $start_dt;
             $rule = $row['recurrence_rule'];
 
@@ -76,7 +79,7 @@ try {
                 if ($current_date >= $view_start) {
                     $event_end = clone $current_date;
                     $event_end->add($duration);
-                    
+
                     $display_end = clone $event_end;
                     if ($isAllDay) {
                         $display_end->modify('+1 day');
@@ -95,6 +98,7 @@ try {
                         'allDay'  => $isAllDay,
                         'editable' => false,
                         'extendedProps' => [
+                            'category' => $row['category'],
                             'recurrence_rule' => $rule,
                             'description' => $row['description'],
                             'completed' => $isCompleted
@@ -104,18 +108,26 @@ try {
 
                 // Move to the next occurrence
                 switch ($rule) {
-                    case 'daily':   $current_date->modify('+1 day'); break;
-                    case 'weekly':  $current_date->modify('+1 week'); break;
-                    case 'monthly': $current_date->modify('+1 month'); break;
-                    case 'yearly':  $current_date->modify('+1 year'); break;
-                    default: break 2; // Exit both switch and while
+                    case 'daily':
+                        $current_date->modify('+1 day');
+                        break;
+                    case 'weekly':
+                        $current_date->modify('+1 week');
+                        break;
+                    case 'monthly':
+                        $current_date->modify('+1 month');
+                        break;
+                    case 'yearly':
+                        $current_date->modify('+1 year');
+                        break;
+                    default:
+                        break 2; // Exit both switch and while
                 }
             }
         }
     }
 
     echo json_encode($events);
-
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);

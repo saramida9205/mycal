@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../src/auth.php';
+check_auth_api();
 
 header('Content-Type: application/json');
 
@@ -10,6 +12,7 @@ $end = $_POST['end'] ?? '';
 $allDay = isset($_POST['allDay']) && $_POST['allDay'] === 'true' ? 1 : 0;
 $completed = isset($_POST['completed']) && $_POST['completed'] === 'true' ? 1 : 0;
 $color = $_POST['color'] ?? '#3498db';
+$category = $_POST['category'] ?? 'general';
 $recurrenceRule = $_POST['recurrence_rule'] ?? null;
 $description = $_POST['description'] ?? null;
 
@@ -21,12 +24,12 @@ if (empty($title) || empty($start) || empty($end)) {
 
 // 데이터베이스에 일정 추가
 try {
-    $userId = 1; // TODO: Replace with session user ID
+    $userId = $_SESSION['user_id'] ?? 1;
 
     $stmt = $pdo->prepare(
-        'INSERT INTO events (title, start, end, allDay, completed, color, recurrence_rule, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO events (title, start, end, allDay, completed, color, category, recurrence_rule, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    $stmt->execute([$title, $start, $end, $allDay, $completed, $color, $recurrenceRule, $description, $userId]);
+    $stmt->execute([$title, $start, $end, $allDay, $completed, $color, $category, $recurrenceRule, $description, $userId]);
     $eventId = $pdo->lastInsertId();
 
     // 파일 업로드 처리

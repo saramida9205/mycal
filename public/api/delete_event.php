@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../src/auth.php';
+check_auth_api();
 header('Content-Type: application/json');
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -11,7 +13,7 @@ if (!isset($input['id']) || !is_numeric($input['id'])) {
 }
 
 $id = $input['id'];
-$userId = 1; // TODO: Replace with session user ID
+$userId = $_SESSION['user_id'] ?? 1;
 
 try {
     $stmt = $pdo->prepare('DELETE FROM events WHERE id = ? AND user_id = ?');

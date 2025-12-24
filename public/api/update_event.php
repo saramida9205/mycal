@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../src/auth.php';
+check_auth_api();
 
 header('Content-Type: application/json');
 
@@ -22,9 +24,10 @@ $allDay = isset($data['allDay']) && ($data['allDay'] === 'true' || $data['allDay
 $completed = isset($data['completed']) && ($data['completed'] === 'true' || $data['completed'] === true) ? 1 : 0;
 
 $color = $data['color'] ?? '#3498db';
+$category = $data['category'] ?? 'general';
 $recurrenceRule = $data['recurrence_rule'] ?? null;
 $description = $data['description'] ?? null;
-$userId = 1; // TODO: Replace with session user ID
+$userId = $_SESSION['user_id'] ?? 1;
 
 // 유효성 검사
 if (empty($id) || empty($title) || empty($start) || empty($end)) {
@@ -36,9 +39,9 @@ if (empty($id) || empty($title) || empty($start) || empty($end)) {
 // 데이터베이스에 일정 업데이트
 try {
     $stmt = $pdo->prepare(
-        'UPDATE events SET title = ?, start = ?, end = ?, allDay = ?, completed = ?, color = ?, recurrence_rule = ?, description = ? WHERE id = ? AND user_id = ?'
+        'UPDATE events SET title = ?, start = ?, end = ?, allDay = ?, completed = ?, color = ?, category = ?, recurrence_rule = ?, description = ? WHERE id = ? AND user_id = ?'
     );
-    $stmt->execute([$title, $start, $end, $allDay, $completed, $color, $recurrenceRule, $description, $id, $userId]);
+    $stmt->execute([$title, $start, $end, $allDay, $completed, $color, $category, $recurrenceRule, $description, $id, $userId]);
 
     // 파일 업로드 처리 (기존 파일 관리 로직은 필요에 따라 추가)
 
