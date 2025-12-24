@@ -49,6 +49,8 @@ check_auth();
             </div>
 
             <div class="sidebar-footer">
+                <button id="googleLoginButton" class="action-button full-width" style="background-color: #4285F4;">구글 캘린더 연동</button>
+                <button id="googleSyncButton" class="action-button full-width secondary">구글 일정 동기화</button>
                 <button id="backupDbButton" class="action-button full-width secondary">DB 백업</button>
                 <button id="exportIcsButton" class="action-button full-width secondary">ICS 내보내기</button>
                 <button id="importIcsButton" class="action-button full-width">ICS 파일 가져오기</button>

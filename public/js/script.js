@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const ddayListEl = document.getElementById('ddayList');
     const exportIcsButton = document.getElementById('exportIcsButton');
     const backupDbButton = document.getElementById('backupDbButton');
+    const googleLoginButton = document.getElementById('googleLoginButton');
+    const googleSyncButton = document.getElementById('googleSyncButton');
     const clearEventsButton = document.getElementById('clearEventsButton');
     const sidebar = document.getElementById('sidebar');
     const menuToggle = document.getElementById('menuToggle');

@@ -2,3 +2,5 @@ config
 .vscode
 ._DAV
 backup
+src/google_keys.php
+client_secret_*.json
