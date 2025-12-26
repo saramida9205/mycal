@@ -392,6 +392,9 @@ html {
 }
 
 .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -633,4 +636,56 @@ html {
     color: var(--warning-color);
     display: block;
     margin-top: 2px;
+}
+
+/* Context Menu */
+.context-menu {
+    display: none;
+    position: absolute;
+    z-index: 2000;
+    width: 200px;
+    background: var(--card-bg);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-radius: var(--border-radius-sm);
+    padding: 6px 0;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.context-menu-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    transition: background-color 0.15s ease;
+}
+
+.context-menu-item:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: var(--primary-color);
+}
+
+.context-menu-item .icon {
+    margin-right: 10px;
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.context-menu-item.danger {
+    color: var(--danger-color);
+}
+
+.context-menu-item.danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.context-divider {
+    height: 1px;
+    background-color: var(--glass-border);
+    margin: 4px 0;
 }
