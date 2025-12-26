@@ -23,10 +23,11 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
     'redirect_uri' => GOOGLE_REDIRECT_URI,
     'grant_type' => 'authorization_code'
 ]));
+// Synology/Local dev SSL fix
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
 $response = curl_exec($ch);
 $data = json_decode($response, true);
-curl_close($ch);
 
 if (isset($data['error'])) {
     die('토킹 교환 오류: ' . $data['error_description']);

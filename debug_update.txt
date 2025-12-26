@@ -1,0 +1,42 @@
+2025-12-24 15:54:43 Data: Array
+(
+    [id] => 966
+    [title] => 구글 미팅 14시
+    [start] => 2025-12-23T14:00
+    [end] => 2025-12-23T15:00
+    [allDay] => false
+    [completed] => true
+    [color] => #4285F4
+    [category] => general
+    [recurrence_rule] => 
+    [description] => 
+)
+
+2025-12-24 15:54:49 Data: Array
+(
+    [id] => 967
+    [title] => 한국재무 관리비
+    [start] => 2025-12-24T00:00
+    [end] => 2025-12-25T00:00
+    [allDay] => true
+    [completed] => true
+    [color] => #4285F4
+    [category] => general
+    [recurrence_rule] => 
+    [description] => <p>하나은행 599-910016-44704 표상기(상록빌딩) 기본 561,000+@ (약 전기세포함 90만원) &nbsp; 기본관리비 1일~말일 전기 16일 ~ 15일 수도 1일 ~ 말일</p>
+)
+
+2025-12-24 15:54:55 Data: Array
+(
+    [id] => 967
+    [title] => 한국재무 관리비
+    [start] => 2025-12-24T00:00
+    [end] => 2025-12-25T00:00
+    [allDay] => true
+    [completed] => false
+    [color] => #4285F4
+    [category] => general
+    [recurrence_rule] => 
+    [description] => <p>하나은행 599-910016-44704 표상기(상록빌딩) 기본 561,000+@ (약 전기세포함 90만원) &nbsp; 기본관리비 1일~말일 전기 16일 ~ 15일 수도 1일 ~ 말일</p>
+)
+

@@ -20,10 +20,9 @@ try {
 $userId = $_SESSION['user_id'] ?? 1;
 
 try {
-    // Fetch all events for the user. Filtering by date is complex with recurrence,
-    // so we fetch all and process in PHP. For large datasets, this should be optimized.
+    // Fetch all events for the user
     $stmt = $pdo->prepare(
-        'SELECT id, title, start, end, allDay, completed, color, category, recurrence_rule, description FROM events WHERE user_id = ?'
+        'SELECT id, title, start, end, allDay, completed, color, category, recurrence_rule, exdates, description FROM events WHERE user_id = ?'
     );
     $stmt->execute([$userId]);
     $all_user_events = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -38,13 +37,10 @@ try {
             $event_start_dt = new DateTime($row['start']);
             $event_end_dt = new DateTime($row['end']);
 
-            // Check if the event falls within the calendar's view
+            // Check if within view
             if ($event_start_dt < $view_end && $event_end_dt >= $view_start) {
                 $end_date_for_fc = $row['end'];
                 if ($isAllDay) {
-                    // For all-day events, FullCalendar expects the end date to be exclusive.
-                    // The DB stores an inclusive end date (e.g., event on 10th is start:10, end:10).
-                    // We need to provide the end as the morning of the next day.
                     $end_dt = new DateTime($row['end']);
                     $end_dt->modify('+1 day');
                     $end_date_for_fc = $end_dt->format('Y-m-d');
@@ -74,10 +70,81 @@ try {
             $current_date = clone $start_dt;
             $rule = $row['recurrence_rule'];
 
+            $exdates = [];
+            if (!empty($row['exdates'])) {
+                $exdates = explode(',', $row['exdates']);
+            }
+
+            // Parse Rule
+            $ruleParts = explode(';', $rule);
+            $baseRule = $ruleParts[0];
+            $holidayShift = null; // BEFORE, AFTER
+
+            foreach ($ruleParts as $part) {
+                if (strpos($part, 'HOLIDAY=') === 0) {
+                    $holidayShift = substr($part, 8);
+                }
+            }
+
+            // Advanced Rules Setup
+            $nthParams = [];
+            $isAdvancedMonthly = false;
+
+            if (strpos($baseRule, 'monthly_') === 0 && $baseRule !== 'monthly') {
+                $isAdvancedMonthly = true;
+                if ($baseRule === 'monthly_nth_weekday') {
+                    $parts = explode(':', $baseRule);
+                    if (count($parts) >= 3) {
+                        $nthParams['n'] = $parts[1];
+                        $nthParams['day'] = $parts[2];
+                    }
+                }
+            }
+
             // Loop through occurrences
             while ($current_date < $view_end) {
-                if ($current_date >= $view_start) {
-                    $event_end = clone $current_date;
+                $target_date = clone $current_date;
+
+                // 1. Calculate Target Date for Advanced Rules
+                if ($isAdvancedMonthly) {
+                    if ($baseRule === 'monthly_first_day') {
+                        $target_date->modify('first day of this month');
+                    } elseif ($baseRule === 'monthly_last_day') {
+                        $target_date->modify('last day of this month');
+                    } elseif ($baseRule === 'monthly_nth_weekday') {
+                        $ordinal = ['1' => 'first', '2' => 'second', '3' => 'third', '4' => 'fourth', '5' => 'last'][$nthParams['n']] ?? 'first';
+                        $dayName = $nthParams['day'];
+                        $target_date->modify("{$ordinal} {$dayName} of this month");
+                    }
+                }
+
+                // 2. Apply Holiday Shifting
+                if ($holidayShift) {
+                    require_once __DIR__ . '/../../src/HolidayService.php';
+                    $max_shifts = 5;
+                    $shifts = 0;
+
+                    while ($shifts < $max_shifts) {
+                        $isDateHoliday = HolidayService::isHoliday($target_date->format('Y-m-d'));
+                        $isWeekend = (int)$target_date->format('N') >= 6; // 6=Sat, 7=Sun
+
+                        if (!$isDateHoliday && !$isWeekend) {
+                            break;
+                        }
+
+                        if ($holidayShift === 'BEFORE') {
+                            $target_date->modify('-1 day');
+                        } elseif ($holidayShift === 'AFTER') {
+                            $target_date->modify('+1 day');
+                        }
+                        $shifts++;
+                    }
+                }
+
+                // 3. Render Event
+                $target_date_str = $target_date->format('Y-m-d');
+                if ($target_date >= $view_start && $target_date < $view_end && !in_array($target_date_str, $exdates)) {
+                    $event_end = clone $target_date;
                     $event_end->add($duration);
 
                     $display_end = clone $event_end;
@@ -89,10 +156,10 @@ try {
                     }
 
                     $events[] = [
-                        'id'      => $row['id'] . '_' . $current_date->format('Ymd'),
+                        'id'      => $row['id'] . '_' . $target_date->format('Ymd'),
                         'groupId' => $row['id'],
                         'title'   => $row['title'],
-                        'start'   => $isAllDay ? $current_date->format('Y-m-d') : $current_date->format('Y-m-d\TH:i:s'),
+                        'start'   => $isAllDay ? $target_date->format('Y-m-d') : $target_date->format('Y-m-d\TH:i:s'),
                         'end'     => $display_end_str,
                         'color'   => $row['color'],
                         'allDay'  => $isAllDay,
@@ -106,22 +173,26 @@ try {
                     ];
                 }
 
-                // Move to the next occurrence
-                switch ($rule) {
-                    case 'daily':
-                        $current_date->modify('+1 day');
-                        break;
-                    case 'weekly':
-                        $current_date->modify('+1 week');
-                        break;
-                    case 'monthly':
-                        $current_date->modify('+1 month');
-                        break;
-                    case 'yearly':
-                        $current_date->modify('+1 year');
-                        break;
-                    default:
-                        break 2; // Exit both switch and while
+                // 4. Increment for NEXT iteration
+                if ($isAdvancedMonthly) {
+                    $current_date->modify('first day of next month');
+                } else {
+                    switch (substr($baseRule, 0, 7)) {
+                        case 'daily':
+                            $current_date->modify('+1 day');
+                            break;
+                        case 'weekly':
+                            $current_date->modify('+1 week');
+                            break;
+                        case 'monthly':
+                            $current_date->modify('+1 month');
+                            break;
+                        case 'yearly':
+                            $current_date->modify('+1 year');
+                            break;
+                        default:
+                            break 2;
+                    }
                 }
             }
         }

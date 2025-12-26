@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../src/auth.php';
+require_once __DIR__ . '/../config/database.php';
 check_auth();
+
+$userId = $_SESSION['user_id'] ?? 1;
+$stmt = $pdo->prepare("SELECT 1 FROM user_tokens WHERE user_id = ?");
+$stmt->execute([$userId]);
+$isGoogleConnected = (bool)$stmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -26,7 +32,14 @@ check_auth();
         <!-- 사이드바 -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>My일정관리</h2>
+                <div>
+                    <h2>My일정관리</h2>
+                    <?php if (isset($_SESSION['username'])): ?>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">
+                            👋 안녕하세요, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>님
+                        </div>
+                    <?php endif; ?>
+                </div>
                 <div class="theme-switch" title="테마 변경">
                     <span id="theme-icon">🌙</span>
                 </div>
@@ -49,12 +62,21 @@ check_auth();
             </div>
 
             <div class="sidebar-footer">
-                <button id="googleLoginButton" class="action-button full-width" style="background-color: #4285F4;">구글 캘린더 연동</button>
+                <?php if ($isGoogleConnected): ?>
+                    <button id="googleLoginButton" class="action-button full-width success">구글 캘린더 연동완료</button>
+                <?php else: ?>
+                    <button id="googleLoginButton" class="action-button full-width" style="background-color: #4285F4;">구글 캘린더 연동</button>
+                <?php endif; ?>
                 <button id="googleSyncButton" class="action-button full-width secondary">구글 일정 동기화</button>
                 <button id="backupDbButton" class="action-button full-width secondary">DB 백업</button>
+                <button id="removeDuplicatesButton" class="action-button full-width secondary">중복 일정 정리</button>
                 <button id="exportIcsButton" class="action-button full-width secondary">ICS 내보내기</button>
                 <button id="importIcsButton" class="action-button full-width">ICS 파일 가져오기</button>
                 <button id="clearEventsButton" class="action-button full-width danger">일정 초기화</button>
+                <?php if (isset($_SESSION['username']) && $_SESSION['username'] === 'admin'): ?>
+                    <a href="/admin.php" class="action-button full-width danger" style="background-color: #2c3e50;">관리자 페이지</a>
+                <?php endif; ?>
+                <a href="/change_password.php" class="action-button full-width outline">비밀번호 변경</a>
                 <a href="/logout.php" class="action-button full-width outline">로그아웃</a>
                 <input type="file" id="icsFileInput" style="display: none;" accept=".ics">
             </div>
@@ -117,7 +139,47 @@ check_auth();
                             <option value="weekly">매주</option>
                             <option value="monthly">매월</option>
                             <option value="yearly">매년</option>
+                            <option value="custom">직접 설정...</option>
                         </select>
+                    </div>
+                    <!-- Advanced Recurrence Options -->
+                    <div id="customRecurrenceOptions" class="advanced-options">
+                        <div class="form-row" style="margin-bottom: 10px;">
+                            <label style="margin-right: 10px;">상세설정:</label>
+                            <select id="advRecureType" style="flex: 1;">
+                                <option value="monthly_first_day">매월 1일 (초)</option>
+                                <option value="monthly_last_day">매월 말일</option>
+                                <option value="monthly_nth_weekday">매월 N번째 요일</option>
+                            </select>
+                        </div>
+
+                        <div id="advRecurNthOptions" style="display:none; margin-bottom: 10px;">
+                            <select id="advRecurNth" style="width: 45%;">
+                                <option value="1">첫째</option>
+                                <option value="2">둘째</option>
+                                <option value="3">셋째</option>
+                                <option value="4">넷째</option>
+                                <option value="5">마지막</option>
+                            </select>
+                            <select id="advRecurDay" style="width: 45%;">
+                                <option value="Mon">월요일</option>
+                                <option value="Tue">화요일</option>
+                                <option value="Wed">수요일</option>
+                                <option value="Thu">목요일</option>
+                                <option value="Fri">금요일</option>
+                                <option value="Sat">토요일</option>
+                                <option value="Sun">일요일</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row" style="align-items: center;">
+                            <label style="margin-right: 10px;">공휴일인 경우:</label>
+                            <select id="advRecurHoliday" style="flex: 1;">
+                                <option value="">그대로 진행</option>
+                                <option value="BEFORE">전일(평일)로 이동</option>
+                                <option value="AFTER">익일(평일)로 이동</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="allDay" name="allDay">
@@ -145,8 +207,23 @@ check_auth();
                 <div class="form-actions">
                     <button type="submit" id="saveButton" class="action-button">저장</button>
                     <button type="button" id="deleteButton" class="action-button danger">삭제</button>
+                    <button type="button" id="closeModalButton" class="action-button secondary">닫기</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 캘린더 선택 모달 -->
+    <div id="calendarSelectionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeCalendarModal">&times;</span>
+            <h2>동기화할 구글 캘린더 선택</h2>
+            <div id="calendarListContainer" style="margin: 20px 0; max-height: 300px; overflow-y: auto;">
+                <p>불러오는 중...</p>
+            </div>
+            <div class="form-actions">
+                <button id="confirmSyncButton" class="action-button">동기화 시작</button>
+            </div>
         </div>
     </div>
 
@@ -154,6 +231,10 @@ check_auth();
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
     <!-- FullCalendar 한국어 언어팩 -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ko.js'></script>
+    <!-- Lunar Calendar Logic -->
+    <script src="js/lunar_cal.js"></script>
+    <!-- Background Particles -->
+    <script src="js/particles.js"></script>
     <!-- Your application script -->
     <script src="js/script.js"></script>
 
